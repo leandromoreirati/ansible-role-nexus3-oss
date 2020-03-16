@@ -1,0 +1,12 @@
+{
+  "name": "nexus-backup-production",
+  "softQuota": null,
+  "bucketConfiguration": {
+    "bucket": {
+      "region": "DEFAULT",
+      "name": "lms-infraestrutura-staging",
+      "prefix": "",
+      "expiration": 7
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "maven-releases",
+  "online": true,
+  "storage": {
+    "blobStoreName": "nexus-production",
+    "strictContentTypeValidation": false,
+    "writePolicy": "ALLOW_ONCE"
+  },
+  "cleanup": null,
+  "maven": {
+    "versionPolicy": "RELEASE",
+    "layoutPolicy": "STRICT"
+  },
+  "format": "maven2",
+  "type": "hosted"
+}

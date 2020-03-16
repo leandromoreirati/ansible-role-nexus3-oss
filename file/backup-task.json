@@ -1,0 +1,10 @@
+{
+  "id": "7f7f0221-547e-44e0-9161-d35436d93e88",
+  "name": "backup-db",
+  "type": "db.backup",
+  "message": null,
+  "currentState": "WAITING",
+  "lastRunResult": null,
+  "nextRun": "2020-03-11T04:00:00.000+0000",
+  "lastRun": null
+}

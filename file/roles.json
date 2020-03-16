@@ -1,0 +1,12 @@
+{
+  "id": "NEXUS - Administrators",
+  "source": "default",
+  "name": "nexus-admin",
+  "description": "Administrator role to LDAP Integration",
+  "privileges": [
+    "nx-all"
+  ],
+  "roles": [
+    "nx-admin"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "maven-snapshots",
+  "online": true,
+  "storage": {
+    "blobStoreName": "nexus-production",
+    "strictContentTypeValidation": false,
+    "writePolicy": "ALLOW"
+  },
+  "cleanup": null,
+  "maven": {
+    "versionPolicy": "SNAPSHOT",
+    "layoutPolicy": "STRICT"
+  },
+  "format": "maven2",
+  "type": "hosted"
+}

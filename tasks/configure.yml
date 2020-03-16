@@ -1,0 +1,207 @@
+---
+- name: Check if admin password file exists
+  stat:
+    path: "{{ nexus_workspace_dir }}/nexus3/admin.password"
+  register: admin_password_file
+
+- name: Get generated admin password from file (nexus >= 3.17)
+  when:
+    - admin_password_file.stat.exists
+  block:
+    - name: Slurp content of remote generated password file
+      slurp:
+        src: "{{ nexus_workspace_dir }}/nexus3/admin.password"
+      register: nexus_current_password
+
+    - name: Set default password from slurped content
+      set_fact:
+        nexus_default_admin_password: "{{ nexus_current_password.content | b64decode }}"
+
+- name: Configuring LDAP Integration
+  uri:
+    url: "http://{{ nexus_host }}:{{ nexus_default_port }}/service/rest/beta/security/ldap"
+    user: "{{ nexus_admin_user }}"
+    password: "{{ nexus_default_admin_password }}"
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+    method: POST
+    return_content: yes
+    body: "{{ lookup('file','../file/ldap.json') }}"
+    force_basic_auth: yes
+    status_code: 201
+    validate_certs: no
+    body_format: json
+
+- name: Configuring Nexus Realms
+  uri:
+    url: "http://{{ nexus_host }}:{{ nexus_default_port }}/service/rest/beta/security/realms/active"
+    user: "{{ nexus_admin_user }}"
+    password: "{{ nexus_default_admin_password }}"
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+    method: PUT
+    return_content: yes
+    body: "{{ lookup('file','../file/realms.json') }}"
+    force_basic_auth: yes
+    status_code: 204
+    validate_certs: no
+    body_format: json
+
+- name: Configuring Nexus Roles
+  uri:
+    url: "http://{{ nexus_host }}:{{ nexus_default_port }}/service/rest/beta/security/roles"
+    user: "{{ nexus_admin_user }}"
+    password: "{{ nexus_default_admin_password }}"
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+    method: POST
+    return_content: yes
+    body: "{{ lookup('file','../file/roles.json') }}"
+    force_basic_auth: yes
+    status_code: 200
+    validate_certs: no
+    body_format: json
+
+- name: Configuring Nexus S3 Blob Store
+  uri:
+    url: "http://{{ nexus_host }}:{{ nexus_default_port }}/service/rest/beta/blobstores/s3"
+    user: "{{ nexus_admin_user }}"
+    password: "{{ nexus_default_admin_password }}"
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+    method: POST
+    return_content: yes
+    body: "{{ lookup('file','../file/s3-storage.json') }}"
+    force_basic_auth: yes
+    status_code: 201
+    validate_certs: no
+    body_format: json
+
+- name: Configuring Nexus S3 Backup Blob Store
+  uri:
+    url: "http://{{ nexus_host }}:{{ nexus_default_port }}/service/rest/beta/blobstores/s3"
+    user: "{{ nexus_admin_user }}"
+    password: "{{ nexus_default_admin_password }}"
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+    method: POST
+    return_content: yes
+    body: "{{ lookup('file','../file/s3-backup-storage.json') }}"
+    force_basic_auth: yes
+    status_code: 201
+    validate_certs: no
+    body_format: json
+
+- name: Update Maven Central Repository
+  uri:
+    url: "http://{{ nexus_host }}:{{ nexus_default_port }}/service/rest/beta/repositories/maven/proxy/maven-central"
+    user: "{{ nexus_admin_user }}"
+    password: "{{ nexus_default_admin_password }}"
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+    method: PUT
+    return_content: yes
+    body: "{{ lookup('file','../file/repository/maven-central.json') }}"
+    force_basic_auth: yes
+    status_code: 204
+    validate_certs: no
+    body_format: json
+
+- name: Update Maven Release Repository
+  uri:
+    url: "http://{{ nexus_host }}:{{ nexus_default_port }}/service/rest/beta/repositories/maven/hosted/maven-releases"
+    user: "{{ nexus_admin_user }}"
+    password: "{{ nexus_default_admin_password }}"
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+    method: PUT
+    return_content: yes
+    body: "{{ lookup('file','../file/repository/maven-release.json') }}"
+    force_basic_auth: yes
+    status_code: 204
+    validate_certs: no
+    body_format: json
+
+- name: Update Maven Snapshot Repository
+  uri:
+    url: "http://{{ nexus_host }}:{{ nexus_default_port }}/service/rest/beta/repositories/maven/hosted/maven-snapshots"
+    user: "{{ nexus_admin_user }}"
+    password: "{{ nexus_default_admin_password }}"
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+    method: PUT
+    return_content: yes
+    body: "{{ lookup('file','../file/repository/maven-snapshot.json') }}"
+    force_basic_auth: yes
+    status_code: 204
+    validate_certs: no
+    body_format: json
+
+- name: Delete Nuget Hosted Repository
+  uri:
+    url: "http://{{ nexus_host }}:{{ nexus_default_port }}/service/rest/beta/repositories/nuget-hosted"
+    user: "{{ nexus_admin_user }}"
+    password: "{{ nexus_default_admin_password }}"
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+    method: DELETE
+    return_content: yes
+    force_basic_auth: yes
+    status_code: 204
+    validate_certs: no
+    body_format: json
+
+- name: Delete Nuget Group Repository
+  uri:
+    url: "http://{{ nexus_host }}:{{ nexus_default_port }}/service/rest/beta/repositories/nuget-group"
+    user: "{{ nexus_admin_user }}"
+    password: "{{ nexus_default_admin_password }}"
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+    method: DELETE
+    return_content: yes
+    force_basic_auth: yes
+    status_code: 204
+    validate_certs: no
+    body_format: json
+
+- name: Delete Nuget Prosy Repository
+  uri:
+    url: "http://{{ nexus_host }}:{{ nexus_default_port }}/service/rest/beta/repositories/nuget.org-proxy"
+    user: "{{ nexus_admin_user }}"
+    password: "{{ nexus_default_admin_password }}"
+    headers:
+      Content-Type: "application/json"
+      Accept: "application/json"
+    method: DELETE
+    return_content: yes
+    force_basic_auth: yes
+    status_code: 204
+    validate_certs: no
+    body_format: json
+
+- name: Update Nexus Admin Password
+  uri:
+    url: "http://{{ nexus_host }}:{{ nexus_default_port }}/service/rest/beta/security/users/{{ nexus_admin_user }}/change-password"
+    user: "{{ nexus_admin_user }}"
+    password: "{{ nexus_default_admin_password }}"
+    headers:
+      Content-Type: "text/plain"
+      Accept: "application/json"
+    method: PUT
+    return_content: yes
+    body: "{{ nexus_admin_password }}"
+    force_basic_auth: yes
+    status_code: 204
+    validate_certs: no
+    body_format: json

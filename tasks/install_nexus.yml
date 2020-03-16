@@ -1,0 +1,204 @@
+---
+- name: Create application user group
+  group:
+    name: "{{ application_user }}"
+
+- name: Create application user
+  user:
+    name: "{{ application_user }}"
+    group: "{{ application_group }}"
+    create_home: yes
+    home: "{{ application_dir }}"
+    shell: "/bin/bash"
+
+- name: Install Nexus Dependencies
+  yum:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - curl
+    - wget
+    - java-1.8.0-openjdk
+
+- name: Unarchive a file that needs to be downloaded
+  unarchive:
+    src: "{{ nexus_download_url }}"
+    dest: "/opt/"
+    group: "{{ application_user }}"
+    owner: "{{ application_group }}"
+    mode: 0755
+    remote_src: yes
+
+- name: Move Nexus directory
+  copy:
+    src: "/opt/nexus-3.21.1-01/"
+    dest: "{{ application_dir }}"
+    owner: "{{ application_user }}"
+    group: "{{ application_group }}"
+    remote_src: yes
+
+- name: Recursively change ownership of a directory
+  file:
+    path: "{{ nexus_workspace_dir }}"
+    state: directory
+    recurse: yes
+    owner: "{{ application_user }}"
+    group: "{{ application_group }}"
+
+- name: Remove Nexus download folder
+  file:
+    path: "/opt/nexus-3.21.1-01/"
+    state: absent
+
+- name: Get path to default settings
+  set_fact:
+    nexus_default_settings_file: "{{ application_dir }}/etc/nexus-default.properties"
+  when: nexus_version is version_compare('3.1.0', '>=')
+
+#- name: Copy Nexus JVM configuration file
+#  template:
+#    src: nexus.vmoptions.j2
+#    dest: "{{ application_dir }}/bin/nexus.vmoptions"
+#    owner: "{{ application_user }}"
+#    group: "{{ application_group }}"
+#    mode: 0755
+#
+#- name: Copy Nexus User configuration File
+#  template:
+#    src: nexus.rc.j2
+#    dest: "{{ application_dir }}/bin/nexus.rc"
+#    owner: "{{ application_user }}"
+#    group: "{{ application_group }}"
+#    mode: 0755
+#
+- name: Copy Nexus Start Script
+  template:
+    src: nexus
+    dest: "{{ application_dir }}/bin/nexus"
+    owner: "{{ application_user }}"
+    group: "{{ application_group }}"
+    mode: 0755
+
+- name: Setup Nexus default timezone
+  lineinfile:
+    dest: "{{ application_dir }}/bin/nexus.vmoptions"
+    regexp: "^-Duser.timezone=.*"
+    line: "-Duser.timezone={{ nexus_timezone }}"
+
+- name: Setup Nexus JVM min heap size
+  lineinfile:
+    dest: "{{ application_dir }}/bin/nexus.vmoptions"
+    regexp: "^-Xms.*"
+    line: "-Xms{{ nexus_min_heap_size }}"
+
+- name: Setup Nexus JVM max heap size
+  lineinfile:
+    dest: "{{ application_dir }}/bin/nexus.vmoptions"
+    regexp: "^-Xmx.*"
+    line: "-Xmx{{ nexus_max_heap_size }}"
+
+- name: Setup Nexus JVM max direct memory
+  lineinfile:
+    dest: "{{ application_dir }}/bin/nexus.vmoptions"
+    regexp: "^-XX:MaxDirectMemorySize=.*"
+    line: "-XX:MaxDirectMemorySize={{ nexus_max_direct_memory }}"
+
+- name: Setup JVM log file
+  lineinfile:
+    dest: "{{ application_dir }}/bin/nexus.vmoptions"
+    regexp: "^-XX:LogFile=.*"
+    line: "-XX:LogFile={{ nexus_workspace_dir }}/nexus3/log/jvm.log"
+
+- name: Setup karaf configuration directory
+  lineinfile:
+    dest: "{{ application_dir }}/bin/nexus.vmoptions"
+    regexp: "^-Dkaraf.etc=.*"
+    line: "-Dkaraf.etc={{ application_dir }}/etc/karaf"
+
+- name: Setup karaf properties file
+  lineinfile:
+    dest: "{{ application_dir }}/bin/nexus.vmoptions"
+    regexp: "^-Djava.util.logging.config.file=.*"
+    line: "-Djava.util.logging.config.file={{ application_dir }}/etc/karaf/java.util.logging.properties"
+
+- name: Setup karaf data directory
+  lineinfile:
+    dest: "{{ application_dir }}/bin/nexus.vmoptions"
+    regexp: "^-Dkaraf.data=.*"
+    line: "-Dkaraf.data={{ nexus_workspace_dir }}/nexus3"
+
+- name: Setup karaf log file
+  lineinfile:
+    dest: "{{ application_dir }}/bin/nexus.vmoptions"
+    regexp: "^-Dkaraf.log=.*"
+    line: "-Dkaraf.log={{ nexus_workspace_dir }}/nexus3/log"
+
+- name: Setup temporary directory
+  lineinfile:
+    dest: "{{ application_dir }}/bin/nexus.vmoptions"
+    regexp: "^-Djava.io.tmpdir=.*"
+    line: "-Djava.io.tmpdir={{ nexus_workspace_dir }}/nexus3/tmp"
+
+#- name: Setup PID file directory
+#  lineinfile:
+#    dest: "{{ application_dir }}/bin/nexus.vmoptions"
+#    regexp: "^-Dinstall4j.pidDir=.*"
+#    line: "-Dinstall4j.pidDir={{ nexus_pid_dir }"
+
+- name: Set nexus user
+  lineinfile:
+    dest: "{{ application_dir }}/bin/nexus.rc"
+    regexp: ".*run_as_user=.*"
+    line: "run_as_user=\"{{ application_user }}\""
+
+- name: Set nexus port
+  lineinfile:
+    dest: "{{ nexus_default_settings_file }}"
+    regexp: "^application-port=.*"
+    line: "application-port={{ nexus_default_port }}"
+
+- name: Set nexus context path
+  lineinfile:
+    dest: "{{ nexus_default_settings_file }}"
+    regexp: "^nexus-context-path=.*"
+    line: "nexus-context-path={{ nexus_default_context_path }}"
+
+- name: "Set nexus service listening ip to {{ nexus_host }}"
+  lineinfile:
+    dest: "{{ nexus_default_settings_file }}"
+    regexp: "^application-host=.*"
+    line: "application-host={{ nexus_application_host }}"
+
+- name: Stop the admin wizard from running
+  lineinfile:
+    path: "{{ nexus_default_settings_file }}"
+    line: "nexus.onboarding.enabled={{ nexus_onboarding_wizard }}"
+    create: true
+
+- meta: flush_handlers
+
+- name: Create SystemD service Configuration
+  template:
+    src: nexus.service.j2
+    dest: /etc/systemd/system/nexus.service
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - systemd-reload
+
+- name: Enable nexus systemd service and make sure it is started
+  systemd:
+    name: nexus.service
+    enabled: yes
+    state: started
+    no_block: no
+  notify:
+    - wait-for-nexus
+    - wait-for-nexus-port
+
+- name: wait-for-nexus
+  wait_for:
+    path: "{{ nexus_workspace_dir }}/nexus3/log/nexus.log"
+    search_regex: "Started Sonatype Nexus .*"
+    timeout: 1800

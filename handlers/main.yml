@@ -1,0 +1,20 @@
+---
+# handlers file for nexus
+- name: systemd-reload
+  systemd:
+    daemon-reload: yes
+    name: nexus.service
+
+- name: wait-for-nexus
+  wait_for:
+    path: "{{ nexus_workspace_dir }}/nexus3/log/nexus.log"
+    search_regex: "Started Sonatype Nexus .*"
+    timeout: 1800
+
+- name: wait-for-nexus-port
+  wait_for:
+    port: "{{ nexus_default_port }}"
+    timeout: "{{ nexus_wait_for_port_timeout | default(omit) }}"
+  retries: "{{ nexus_wait_for_port_retries | default(omit) }}"
+  register: wait_for_result
+  until: wait_for_result is success
